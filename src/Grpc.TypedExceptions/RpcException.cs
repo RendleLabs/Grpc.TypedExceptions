@@ -9,6 +9,10 @@ namespace Grpc.Core
     {
         public T Detail { get; }
 
+        public RpcException(T detail) : this(detail, new Status(StatusCode.Internal, $"A {typeof(T).Name} error occurred"))
+        {
+        }
+
         public RpcException(T detail, Status status) : base(status)
         {
             Detail = detail;
