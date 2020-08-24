@@ -5,6 +5,9 @@ using Grpc.Core.Interceptors;
 
 namespace RendleLabs.Grpc.TypedExceptions
 {
+    /// <summary>
+    /// Adds support for <see cref="RpcException{T}" /> typed exceptions
+    /// </summary>
     public class TypedExceptionInterceptor : Interceptor
     {
         public static readonly string DetailKey = $"__rpc_exception_detail{Metadata.BinaryHeaderSuffix}";
@@ -157,11 +160,9 @@ namespace RendleLabs.Grpc.TypedExceptions
         {
             var call = continuation(context);
             
-            var wrapped = new ClientStreamWriterWrapper<TRequest>(call.RequestStream);
-            
             var responseTask = Handle(call);
-            
-            return new AsyncClientStreamingCall<TRequest, TResponse>(wrapped, responseTask, _ => call.ResponseHeadersAsync,
+
+            return new AsyncClientStreamingCall<TRequest, TResponse>(call.RequestStream, responseTask, _ => call.ResponseHeadersAsync,
                 _ => call.GetStatus(), _ => call.GetTrailers(), _ => call.Dispose(), null);
         }
 
@@ -195,10 +196,9 @@ namespace RendleLabs.Grpc.TypedExceptions
         {
             var call = continuation(context);
             
-            var clientWrapper = new ClientStreamWriterWrapper<TRequest>(call.RequestStream);
             var streamWrapper = new AsyncStreamReaderWrapper<TResponse>(call.ResponseStream);
             
-            return new AsyncDuplexStreamingCall<TRequest, TResponse>(clientWrapper, streamWrapper, _ => call.ResponseHeadersAsync,
+            return new AsyncDuplexStreamingCall<TRequest, TResponse>(call.RequestStream, streamWrapper, _ => call.ResponseHeadersAsync,
                 _ => call.GetStatus(), _ => call.GetTrailers(), _ => call.Dispose(), null);
         }
     }
