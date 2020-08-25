@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
@@ -11,6 +10,8 @@ namespace RendleLabs.Grpc.TypedExceptions
     public class TypedExceptionInterceptor : Interceptor
     {
         public static readonly string DetailKey = $"__rpc_exception_detail{Metadata.BinaryHeaderSuffix}";
+        public static readonly string DetailChunkCount = $"__rpc_exception_detail_chunk_count";
+        public static readonly string DetailChunkKey = $"__rpc_exception_detail_{{0}}{Metadata.BinaryHeaderSuffix}";
         
         public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest request, ServerCallContext context, UnaryServerMethod<TRequest, TResponse> continuation)
         {
@@ -18,20 +19,9 @@ namespace RendleLabs.Grpc.TypedExceptions
             {
                 return await base.UnaryServerHandler(request, context, continuation);
             }
-            catch (RpcException ex)
+            catch (RpcException ex) when (ex is IRpcExceptionDetail)
             {
-                if (ex is IRpcExceptionDetail detail)
-                {
-                    var metadata = new Metadata();
-                    foreach (var trailer in ex.Trailers)
-                    {
-                        metadata.Add(trailer);
-                    }
-                    metadata.Add(DetailKey, detail.DetailBytes());
-                    throw new RpcException(ex.Status, metadata, ex.Message);
-                }
-
-                throw;
+                throw RpcExceptionDecorator.Decorate(ex);
             }
         }
 
@@ -41,20 +31,9 @@ namespace RendleLabs.Grpc.TypedExceptions
             {
                 return await base.ClientStreamingServerHandler(requestStream, context, continuation);
             }
-            catch (RpcException ex)
+            catch (RpcException ex) when (ex is IRpcExceptionDetail)
             {
-                if (ex is IRpcExceptionDetail detail)
-                {
-                    var metadata = new Metadata();
-                    foreach (var trailer in ex.Trailers)
-                    {
-                        metadata.Add(trailer);
-                    }
-                    metadata.Add(DetailKey, detail.DetailBytes());
-                    throw new RpcException(ex.Status, metadata, ex.Message);
-                }
-
-                throw;
+                throw RpcExceptionDecorator.Decorate(ex);
             }
         }
 
@@ -65,20 +44,9 @@ namespace RendleLabs.Grpc.TypedExceptions
             {
                 await base.ServerStreamingServerHandler(request, responseStream, context, continuation);
             }
-            catch (RpcException ex)
+            catch (RpcException ex) when (ex is IRpcExceptionDetail)
             {
-                if (ex is IRpcExceptionDetail detail)
-                {
-                    var metadata = new Metadata();
-                    foreach (var trailer in ex.Trailers)
-                    {
-                        metadata.Add(trailer);
-                    }
-                    metadata.Add(DetailKey, detail.DetailBytes());
-                    throw new RpcException(ex.Status, metadata, ex.Message);
-                }
-
-                throw;
+                throw RpcExceptionDecorator.Decorate(ex);
             }
         }
 
@@ -89,20 +57,9 @@ namespace RendleLabs.Grpc.TypedExceptions
             {
                 await base.DuplexStreamingServerHandler(requestStream, responseStream, context, continuation);
             }
-            catch (RpcException ex)
+            catch (RpcException ex) when (ex is IRpcExceptionDetail)
             {
-                if (ex is IRpcExceptionDetail detail)
-                {
-                    var metadata = new Metadata();
-                    foreach (var trailer in ex.Trailers)
-                    {
-                        metadata.Add(trailer);
-                    }
-                    metadata.Add(DetailKey, detail.DetailBytes());
-                    throw new RpcException(ex.Status, metadata, ex.Message);
-                }
-
-                throw;
+                throw RpcExceptionDecorator.Decorate(ex);
             }
         }
 
@@ -112,20 +69,9 @@ namespace RendleLabs.Grpc.TypedExceptions
             {
                 return base.BlockingUnaryCall(request, context, continuation);
             }
-            catch (RpcException ex)
+            catch (RpcException ex) when (ex is IRpcExceptionDetail)
             {
-                if (ex is IRpcExceptionDetail detail)
-                {
-                    var metadata = new Metadata();
-                    foreach (var trailer in ex.Trailers)
-                    {
-                        metadata.Add(trailer);
-                    }
-                    metadata.Add(DetailKey, detail.DetailBytes());
-                    throw new RpcException(ex.Status, metadata, ex.Message);
-                }
-
-                throw;
+                throw RpcExceptionDecorator.Decorate(ex);
             }
         }
 
@@ -147,11 +93,11 @@ namespace RendleLabs.Grpc.TypedExceptions
             }
             catch (RpcException ex)
             {
-                var detail = ex.Trailers.FirstOrDefault(e => e.Key == DetailKey);
-                if (!(detail is null))
+                if (RpcExceptionBuilder.Build(ex, out var rpcException))
                 {
-                    throw RpcExceptionBuilder.Build(ex, detail.ValueBytes);
+                    throw rpcException;
                 }
+
                 throw;
             }
         }
@@ -175,11 +121,11 @@ namespace RendleLabs.Grpc.TypedExceptions
             }
             catch (RpcException ex)
             {
-                var detail = ex.Trailers.FirstOrDefault(e => e.Key == DetailKey);
-                if (!(detail is null))
+                if (RpcExceptionBuilder.Build(ex, out var rpcException))
                 {
-                    throw RpcExceptionBuilder.Build(ex, detail.ValueBytes);
+                    throw rpcException;
                 }
+
                 throw;
             }
         }

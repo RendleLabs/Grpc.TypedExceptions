@@ -1,6 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 
@@ -23,11 +21,11 @@ namespace RendleLabs.Grpc.TypedExceptions
             }
             catch (RpcException ex)
             {
-                var detail = ex.Trailers.FirstOrDefault(e => e.Key == TypedExceptionInterceptor.DetailKey);
-                if (!(detail is null))
+                if (RpcExceptionBuilder.Build(ex, out var rpcException))
                 {
-                    throw RpcExceptionBuilder.Build(ex, detail.ValueBytes);
+                    throw rpcException;
                 }
+
                 throw;
             }
         }

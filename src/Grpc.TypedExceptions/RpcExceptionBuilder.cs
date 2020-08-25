@@ -10,13 +10,46 @@ using Any = Google.Protobuf.WellKnownTypes.Any;
 
 namespace RendleLabs.Grpc.TypedExceptions
 {
-    public static class RpcExceptionBuilder
+    internal static class RpcExceptionBuilder
     {
         private static readonly object Sync = new object();
         private static Dictionary<string, Func<RpcException, ByteString, RpcException>>? _typeDictionary;
         private static readonly Func<Type, bool> IsMessageType = typeof(IMessage).IsAssignableFrom;
+
+        public static bool Build(RpcException baseException, [NotNullWhen(true)]out RpcException? exception)
+        {
+            var trailers = baseException.Trailers;
+            
+            var detail = trailers.GetValueBytes(TypedExceptionInterceptor.DetailKey);
+            
+            if (!(detail is null)) return TryBuild(baseException, detail, out exception);
+
+            var detailChunkCountStr = trailers.GetValue(TypedExceptionInterceptor.DetailChunkCount);
+            if (!(detailChunkCountStr is null) && int.TryParse(detailChunkCountStr, out int detailChunkCount))
+            {
+                var chunks = new List<byte[]>(detailChunkCount);
+                for (int i = 0; i < detailChunkCount; i++)
+                {
+                    var key = string.Format(TypedExceptionInterceptor.DetailChunkKey, i);
+                    var chunk = trailers.GetValueBytes(key);
+                    if (chunk is null)
+                    {
+                        exception = default;
+                        return false;
+                    }
+                    chunks.Add(chunk);
+                }
+
+                detail = LargeArray.Combine(chunks);
+
+                return TryBuild(baseException, detail, out exception);
+            }
+
+            exception = default;
+            return false;
+        }
         
-        public static RpcException Build(RpcException baseException, byte[] data)
+        private static bool TryBuild(RpcException baseException, byte[] data, [NotNullWhen(true)]out RpcException? exception)
         {
             var any = Any.Parser.ParseFrom(data);
             var fullTypeName = Any.GetTypeName(any.TypeUrl);
@@ -24,10 +57,15 @@ namespace RendleLabs.Grpc.TypedExceptions
             if (string.IsNullOrEmpty(fullTypeName)) fullTypeName = any.TypeUrl;
 
             var typeDictionary = TypeDictionary();
-            
-            return typeDictionary.TryGetValue(fullTypeName, out var factory)
-                ? factory(baseException, any.Value)
-                : baseException;
+
+            if (typeDictionary.TryGetValue(fullTypeName, out var factory))
+            {
+                exception = factory(baseException, any.Value);
+                return true;
+            }
+
+            exception = default;
+            return false;
         }
 
         private static Dictionary<string, Func<RpcException, ByteString, RpcException>> TypeDictionary()

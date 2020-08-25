@@ -3,7 +3,20 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <RootNamespace>RendleLabs.Grpc.TypedExceptions</RootNamespace>
+    <AssemblyName>RendleLabs.Grpc.TypedExceptions</AssemblyName>
     <Nullable>enable</Nullable>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <PackageId>RendleLabs.Grpc.TypedExceptions</PackageId>
+    <Description>Add typed exceptions to gRPC</Description>
+    <RepositoryUrl>https://github.com/RendleLabs/Grpc.TypedExceptions</RepositoryUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <Authors>RendleLabs</Authors>
+    <Copyright>2020 RendleLabs Ltd.</Copyright>
+    <PackageTags>grpc</PackageTags>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <IncludeSymbols>true</IncludeSymbols>
   </PropertyGroup>
 
   <ItemGroup>
